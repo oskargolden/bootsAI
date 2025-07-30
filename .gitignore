@@ -1,0 +1,29 @@
+# Environment variables and secrets
+.env
+
+# Python virtual environment and cache
+.venv/
+__pycache__/
+
+# Editor-specific temporary files
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# JavaScript / Node.js
+node_modules/
+dist/
+build/
+*.log
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+
