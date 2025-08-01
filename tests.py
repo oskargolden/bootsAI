@@ -1,23 +1,26 @@
-# tests.py
+from functions.get_files_info import run_python_file
 
-from functions.get_files_info import get_files_info
-
-# Test 1: List current directory
-result1 = get_files_info(".", ".")
-print("Result for current directory:")
+# should print the calculator's usage instructions
+result1 = run_python_file("calculator", "main.py")
 print(result1)
 
-# Test 2: List pkg directory  
-result2 = get_files_info("calculator", "pkg")
-print("Result for 'pkg' directory:")
+# should run the calculator... which gives a kinda nasty rendered result
+result2 = run_python_file("calculator", "main.py", ["3 + 5"])
 print(result2)
 
-# Test 3: Try to access /bin (should fail)
-result3 = get_files_info("calculator", "/bin")
-print("Result for '/bin' directory:")
+# 
+result3 = run_python_file("calculator", "tests.py")
 print(result3)
 
-# Test 4: Try to access ../ (should fail)
-result4 = get_files_info("calculator", "../")
-print("Result for '../' directory:")
+# this should return an error
+result4 = run_python_file("calculator", "../main.py")
 print(result4)
+
+# this should return an error
+result5 = run_python_file("calculator", "nonexistent.py")
+print(result5)
+
+
+
+
+
