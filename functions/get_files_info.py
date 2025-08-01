@@ -1,5 +1,85 @@
 import os
 import subprocess
+from google.genai import types
+
+schema_get_file_content = types.FunctionDeclaration(
+    name="get_file_content",
+    description="Gets the content of a specified file, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The file to read, relative to the working directory.",
+            ),
+        },
+        required=["file_path"],
+    ),
+)
+
+schema_run_python_file = types.FunctionDeclaration(
+    name="run_python_file",
+    description="Runs a specified Python file with an optional list of arguments. Must be constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The file to run, relative to the working directory.",
+            ),
+            "args": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(type=types.Type.STRING),
+                description="Optional list of arguments to pass to the Python file.",
+            ),
+        },
+        required=["file_path"],
+    ),
+)
+
+schema_write_file = types.FunctionDeclaration(
+    name="write_file",
+    description="Writes content to a file, constrained to the working directory. Overwrites any existing content.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The file to write to, relative to the working directory.",
+            ),
+            "content": types.Schema(
+                type=types.Type.STRING,
+                description="The content to write to the file.",
+            ),
+        },
+        required=["file_path", "content"],
+    ),
+)
+
+schema_get_files_info = types.FunctionDeclaration(
+    name="get_files_info",
+    description="Lists files in the specified directory along with their sizes, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "directory": types.Schema(
+                type=types.Type.STRING,
+                description="The directory to list files from, relative to the working directory. If not provided, lists files in the working directory itself.",
+            ),
+        },
+    ),
+)
+
+available_functions = types.Tool(
+    function_declarations=[
+        schema_get_files_info,
+        schema_get_file_content,
+        schema_run_python_file,
+        schema_write_file,
+    ]
+)
+
+
 
 def get_files_info(working_directory, directory='.'):
     #join paths
@@ -136,6 +216,7 @@ def write_file(working_directory, file_path, content):
         return f'Error: {str(e)}'
 
 def run_python_file(working_directory, file_path, args=None):
+    
     """
     FUNCTION"
 
@@ -196,3 +277,69 @@ def run_python_file(working_directory, file_path, args=None):
         return f'Error: The "python" command was not found. Please ensure Python is installed and in your system\'s PATH.'
     except Exception as e:
         return f'Big Bad Errorrr: {e}'
+    
+def call_function(function_call_part, verbose=False):
+    """
+    Calls a specified function based on the LLM's function call part.
+    
+    Args:
+        function_call_part (types.FunctionCall): The function call object from the LLM.
+        verbose (bool): If True, prints verbose output.
+        
+    Returns:
+        types.Content: A Content object containing the function's result or an error.
+    """
+    function_name = function_call_part.name
+    function_args = dict(function_call_part.args)
+    
+    if verbose:
+        print(f"Calling function: {function_name}({function_args})")
+    else:
+        print(f" - Calling function: {function_name}")
+    
+    if function_name not in function_map:
+        return types.Content(
+            role="tool",
+            parts=[
+                types.Part.from_function_response(
+                    name=function_name,
+                    response={"error": f"Unknown function: {function_name}"},
+                )
+            ],
+        )
+
+    # Manually add the working directory for security
+    function_args["working_directory"] = "./calculator"
+
+    try:
+        # Call the function using the dictionary of keyword arguments.
+        function_result = function_map[function_name](**function_args)
+        
+        # Return the result in the required format.
+        return types.Content(
+            role="tool",
+            parts=[
+                types.Part.from_function_response(
+                    name=function_name,
+                    response={"result": function_result},
+                )
+            ],
+        )
+    except Exception as e:
+        return types.Content(
+            role="tool",
+            parts=[
+                types.Part.from_function_response(
+                    name=function_name,
+                    response={"error": f"Error executing function: {e}"},
+                )
+            ],
+        )
+        
+        
+function_map = {
+    "get_files_info": get_files_info,
+    "get_file_content": get_file_content,
+    "run_python_file": run_python_file,
+    "write_file": write_file,
+}
